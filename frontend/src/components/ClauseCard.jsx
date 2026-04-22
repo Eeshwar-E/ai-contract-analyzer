@@ -16,7 +16,7 @@ const ClauseCard = ({ data }) => {
     }}>
       <p style={{ marginBottom: "10px" }}>
         <strong>Clause:</strong><br />
-        {data.text}
+        {data.clause}
       </p>
 
       <p><strong>Type:</strong> {data.type}</p>

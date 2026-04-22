@@ -1,3 +1,5 @@
+from app.utils.ngram_utils import extract_ngrams, detect_phrases
+
 def detect_risk(clause: str):
     c = clause.lower()
 
@@ -24,10 +26,21 @@ def detect_risk(clause: str):
     if "notice" in c:
         score += 1
 
-    # Final decision
-    if score >= 4:
+    ngrams = extract_ngrams(clause)
+    phrases = detect_phrases(ngrams)
+
+    for phrase, level in phrases:
+        if level == "high":
+            score += 3
+        elif level == "medium":
+            score += 2
+    
+    return score, phrases
+
+def get_risk_label(score: int):
+    if score >= 6:
         return "High"
-    elif score >= 2:
+    elif score >= 3:
         return "Medium"
     else:
         return "Low"

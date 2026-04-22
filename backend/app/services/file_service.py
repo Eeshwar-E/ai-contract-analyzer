@@ -3,7 +3,7 @@ from app.core.config import UPLOAD_DIR
 from app.utils.pdf_utils import extract_text
 from app.utils.clause_utils import split_clauses
 from app.utils.classifier import classify_clause, apply_length_penalty
-from app.utils.risk_engine import detect_risk
+from app.utils.risk_engine import detect_risk, get_risk_label
 from app.utils.explainer import explain_clause
 
 def save_file(content: bytes, filename: str) -> str:
@@ -19,20 +19,26 @@ def save_file(content: bytes, filename: str) -> str:
 def process_file(file_path: str):
     text = extract_text(file_path)
     clauses = split_clauses(text)
-
+    """ clauses = [
+        "The company may terminate for convenience without prior notice."
+    ] """
     results = []
 
     for clause in clauses:
         category, confidence = classify_clause(clause)
         confidence = apply_length_penalty(confidence, clause)
-        risk = detect_risk(clause)
-        explanation = explain_clause(clause, risk)
+        score, phrases = detect_risk(clause)
+        risk = get_risk_label(score)
+
+        explanation = explain_clause(clause, risk, phrases)
 
         results.append({
-            "text": clause,
+            "clause": clause,
             "type": category,
             "confidence": confidence,
             "risk": risk,
+            "score": score,
+            "phrases": phrases,
             "explanation": explanation
         })
 
