@@ -1,28 +1,19 @@
-def explain_clause(clause: str, risk: str, phrases=None):
-    c = clause.lower()
+def explain_clause(clause, risk, phrases=None, semantic_matches=None):
     explanation = []
 
-    # Phrase-based explanations (NEW)
     if phrases:
         for phrase, level in phrases:
             explanation.append(f"Detected phrase: '{phrase}' ({level} risk)")
 
-    # Existing keyword explanations
-    if "non-refundable" in c:
-        explanation.append("You may not get your money back under certain conditions.")
+    if semantic_matches:
+        for phrase, level, sim in semantic_matches:
+            explanation.append(f"Similar to: '{phrase}' ({level} risk, {sim*100:.2f}%)")
 
-    if "penalty" in c:
-        explanation.append("You may need to pay extra charges if conditions are not met.")
-
-    if "auto-renew" in c:
-        explanation.append("This agreement may renew automatically without notice.")
-
-    # Fallback based on risk
     if not explanation:
         if risk == "High":
-            explanation.append("This clause may have serious financial or legal consequences.")
+            explanation.append("This clause may have serious consequences.")
         elif risk == "Medium":
-            explanation.append("This clause requires attention before agreeing.")
+            explanation.append("This clause needs attention.")
         else:
             explanation.append("This clause appears standard.")
 

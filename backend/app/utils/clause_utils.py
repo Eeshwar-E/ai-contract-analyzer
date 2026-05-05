@@ -1,26 +1,26 @@
 import re
 
 def split_clauses(text: str):
-    # Normalize text
-    text = re.sub(r'\r\n', '\n', text)
+    if not text:
+        return []
 
-    # Step 1: Split by double newlines (paragraphs)
-    chunks = re.split(r'\n\s*\n', text)
+    # Normalize whitespace
+    text = re.sub(r'\s+', ' ', text)
 
-    clauses = []
+    # 🔹 Split on legal clause boundaries
+    clauses = re.split(
+        r'(?:(?:\n|\r)|\.\s+|;\s+|\bWHEREAS\b|\bNOW, THEREFORE\b|\bSection\s+\d+)',
+        text,
+        flags=re.IGNORECASE
+    )
 
-    for chunk in chunks:
-        chunk = chunk.strip()
+    # 🔹 Clean + filter
+    cleaned = []
+    for clause in clauses:
+        clause = clause.strip()
 
-        # Ignore very small chunks
-        if len(chunk) < 40:
-            continue
+        # remove very short junk
+        if len(clause) > 40:
+            cleaned.append(clause)
 
-        # Further split long chunks by sentence
-        if len(chunk) > 500:
-            sentences = re.split(r'(?<=[.!?])\s+', chunk)
-            clauses.extend([s.strip() for s in sentences if len(s) > 40])
-        else:
-            clauses.append(chunk)
-
-    return clauses
+    return cleaned

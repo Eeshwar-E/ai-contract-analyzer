@@ -1,4 +1,6 @@
-CATEGORY_KEYWORDS = {
+from app.ml.predict import classify_clause_ml
+
+""" CATEGORY_KEYWORDS = {
     "Payment": {
         "payment": 3,
         "fee": 2,
@@ -33,10 +35,11 @@ CATEGORY_KEYWORDS = {
         "inform": 1,
         "notification": 1
     }
-}
+} """
 
-def classify_clause(clause: str):
-    text = clause.lower()
+def classify_clause(text: str):
+    return classify_clause_ml(text)
+    """
     scores = {}
 
     for category, keywords in CATEGORY_KEYWORDS.items():
@@ -56,7 +59,7 @@ def classify_clause(clause: str):
     confidence = best_score / (total_score + 1)
 
     return best_category, round(confidence, 2)
-
+"""
 def apply_length_penalty(confidence, clause):
     word_count = len(clause.split())
 
