@@ -7,6 +7,7 @@ from app.utils.classifier import classify_clause, apply_length_penalty
 from app.utils.risk_engine import detect_risk, get_risk_label
 from app.utils.explainer import explain_clause
 from app.ml.risk_predict import predict_risk_ml
+from app.utils.logger import logger
 
 DATASET_PATH = "risk_dataset.csv"
 
@@ -25,7 +26,7 @@ def save_file(content: bytes, filename: str) -> str:
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     file_path = os.path.join(UPLOAD_DIR, filename)
-
+    logger.info(f"Uploaded file: {filename}")
     with open(file_path, "wb") as f:
         f.write(content)
 
@@ -77,7 +78,9 @@ def process_file(file_path: str):
             risk_result = predict_risk_ml(clause)
             risk = risk_result["risk"]
             risk_conf = risk_result["confidence"]
-
+            logger.info(
+                f"Clause classified | Labels: {result['labels']} | Risk: {risk}"
+            )
             # fallback if low confidence
             if risk_conf < 0.6:
                 risk = get_risk_label(score)
@@ -85,6 +88,7 @@ def process_file(file_path: str):
         except Exception:
             risk = get_risk_label(score)
             risk_conf = 0.0
+            logger.error(str(Exception))
 
         # 🔹 Save training data
         save_training_data(clause, risk)
@@ -94,12 +98,19 @@ def process_file(file_path: str):
 
         results.append({
             "clause": clause,
-            "type": category,
-            "confidence": confidence,
-            "top_predictions": top_scores,
-            "risk": risk,
-            "risk_confidence": risk_conf,
-            "score": score,
+            "predictions": [
+                {
+                    "label": label,
+                    "confidence": round(conf, 4)
+                }
+                for label, conf in result["confidence"]
+            ],
+            "risk": {
+                "level": risk,
+                "confidence": round(risk_conf, 4)
+            },
+            "rule_based_score": score,
+            "semantic_matches": semantic_matches,
             "phrases": phrases,
             "explanation": explanation
         })
