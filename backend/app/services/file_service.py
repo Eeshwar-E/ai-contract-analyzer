@@ -42,6 +42,11 @@ def is_legal_clause(clause):
 
 def process_file(file_path: str):
     text = extract_text(file_path)
+    if not text or not isinstance(text, str):
+        raise ValueError(
+            "Failed to extract readable text from PDF"
+        )
+
     clauses = split_clauses(text)
     results = []
 

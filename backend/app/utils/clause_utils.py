@@ -1,16 +1,22 @@
 import re
+import spacy
+
+nlp = spacy.load("en_core_web_sm")
 
 def clean_clause(text):
-    text = re.sub(r"\s+", " ", text)
+    if not text:
+        return ""
+
+    text = re.sub(r"\s+", " ", str(text))
     return text.strip()
 
-def is_heading(text):
-    text = text.strip()
+def is_heading(line):
+    line = line.strip()
 
-    if len(text.split()) <= 8 and text.isupper():
+    if len(line.split()) <= 10 and line.isupper():
         return True
 
-    if re.match(r"^\d+(\.\d+)*\s+[A-Z]", text):
+    if re.match(r"^\d+(\.\d+)*\s+[A-Z]", line):
         return True
 
     return False
@@ -21,39 +27,43 @@ def split_clauses(text):
 
     text = text.replace("\r", "\n")
 
-    raw_parts = re.split(
-        r"\n\s*\n|(?=\n\d+(\.\d+)*)",
-        text
-    )
+    lines = text.split("\n")
 
     clauses = []
-    current_clause = ""
+    current = ""
 
-    for part in raw_parts:
-        part = clean_clause(part)
+    for line in lines:
+        line = clean_clause(line)
 
-        if not part:
+        if not line:
             continue
 
-        if is_heading(part):
-            if current_clause:
-                clauses.append(current_clause.strip())
+        if is_heading(line):
+            if current:
+                clauses.append(current.strip())
 
-            current_clause = part
+            current = line
             continue
 
-        if current_clause:
-            current_clause += " " + part
-        else:
-            current_clause = part
+        current += " " + line
 
-        if len(current_clause.split()) >= 8:
-            clauses.append(current_clause.strip())
-            current_clause = ""
+        # split semantically using spaCy
+        doc = nlp(current)
 
-    if current_clause:
-        clauses.append(current_clause.strip())
+        if len(list(doc.sents)) >= 2 and len(current.split()) > 25:
+            clauses.append(current.strip())
+            current = ""
 
+    if current:
+        clauses.append(current.strip())
+
+    # remove duplicates
     clauses = list(dict.fromkeys(clauses))
+
+    # remove tiny fragments
+    clauses = [
+        c for c in clauses
+        if len(c.split()) >= 8
+    ]
 
     return clauses
