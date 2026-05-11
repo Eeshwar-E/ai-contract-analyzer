@@ -5,8 +5,8 @@ from itertools import chain
 from collections import Counter
 
 from sklearn.model_selection import train_test_split
-
 from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics import classification_report, f1_score
@@ -76,9 +76,17 @@ def train():
         random_state=42
     )
 
-    # Train model
+    base_model = SGDClassifier(
+        loss="log_loss",
+        max_iter=2000,
+        tol=1e-3
+    )
+
     model = OneVsRestClassifier(
-        SGDClassifier(loss="log_loss")
+        CalibratedClassifierCV(
+            base_model,
+            cv=3
+        )
     )
 
     model.fit(X_train, y_train)

@@ -1,5 +1,6 @@
 import os
 import csv
+
 from app.core.config import UPLOAD_DIR
 from app.utils.pdf_utils import extract_text
 from app.utils.clause_utils import split_clauses
@@ -26,7 +27,9 @@ def save_file(content: bytes, filename: str) -> str:
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     file_path = os.path.join(UPLOAD_DIR, filename)
+
     logger.info(f"Uploaded file: {filename}")
+
     with open(file_path, "wb") as f:
         f.write(content)
 
@@ -34,29 +37,41 @@ def save_file(content: bytes, filename: str) -> str:
 
 def is_legal_clause(clause):
     keywords = [
-        "agreement", "party", "liability",
-        "termination", "obligation", "indemnify"
+        "agreement",
+        "party",
+        "liability",
+        "termination",
+        "obligation",
+        "indemnify",
+        "employment",
+        "confidential",
+        "payment",
+        "law",
+        "contract"
     ]
-    return any(k in clause.lower() for k in keywords)
 
+    clause_lower = clause.lower()
+
+    return any(k in clause_lower for k in keywords)
 
 def process_file(file_path: str):
     text = extract_text(file_path)
+
     if not text or not isinstance(text, str):
         raise ValueError(
             "Failed to extract readable text from PDF"
         )
 
     clauses = split_clauses(text)
+
     results = []
 
     for clause in clauses:
 
-        # 🔹 Skip non-legal / junk clauses
         if not is_legal_clause(clause):
             continue
 
-        # 🔹 Clause classification (Model 1 - UPDATED)
+        # Clause classification
         result = classify_clause(clause)
 
         top_labels = result["labels"]
@@ -65,51 +80,64 @@ def process_file(file_path: str):
         category = top_labels[0]
         confidence = top_scores[0][1]
 
-        confidence = apply_length_penalty(confidence, clause)
+        confidence = apply_length_penalty(
+            confidence,
+            clause
+        )
 
-        # 🔹 Unknown handling
         if confidence < 0.5:
             category = "Unknown"
 
-        # 🔹 Always compute rule-based signals (for explanation)
+        predictions = [
+            {
+                "label": label,
+                "confidence": round(conf, 4)
+            }
+            for label, conf in top_scores
+        ]
+
+        # Risk analysis
         score, phrases, semantic_matches = detect_risk(
             clause,
             label=category,
             confidence=confidence
         )
 
-        # 🔹 Risk prediction (Model 2)
         try:
             risk_result = predict_risk_ml(clause)
+
             risk = risk_result["risk"]
             risk_conf = risk_result["confidence"]
-            logger.info(
-                f"Clause classified | Labels: {result['labels']} | Risk: {risk}"
-            )
-            # fallback if low confidence
+
             if risk_conf < 0.6:
                 risk = get_risk_label(score)
 
-        except Exception:
+            logger.info(
+                f"Clause classified | Labels: {top_labels} | Risk: {risk}"
+            )
+
+        except Exception as e:
+            logger.error(str(e))
+
             risk = get_risk_label(score)
             risk_conf = 0.0
-            logger.error(str(Exception))
 
-        # 🔹 Save training data
         save_training_data(clause, risk)
 
-        # 🔹 Explanation
-        explanation = explain_clause(clause, risk, phrases, semantic_matches)
+        explanation = explain_clause(
+            clause,
+            predictions,
+            {
+                "level": risk,
+                "confidence": risk_conf
+            },
+            phrases,
+            semantic_matches
+        )
 
         results.append({
             "clause": clause,
-            "predictions": [
-                {
-                    "label": label,
-                    "confidence": round(conf, 4)
-                }
-                for label, conf in result["confidence"]
-            ],
+            "predictions": predictions,
             "risk": {
                 "level": risk,
                 "confidence": round(risk_conf, 4)

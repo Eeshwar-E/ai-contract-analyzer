@@ -1,64 +1,116 @@
-import pandas as pd
 import os
 import joblib
+import pandas as pd
 
 from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.linear_model import SGDClassifier
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix
+)
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-DATA_PATH = os.path.join(BASE_DIR, "risk_dataset.csv")
-MODEL_PATH = os.path.join(BASE_DIR, "models/risk_model.pkl")
+from app.utils.embedding_utils import get_embedding_batch
 
+BASE_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../../")
+)
+
+DATA_PATH = os.path.join(
+    BASE_DIR,
+    "risk_dataset.csv"
+)
+
+MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "models/risk_model.pkl"
+)
 
 def load_data():
     df = pd.read_csv(DATA_PATH)
 
-    df = df[['text', 'label']].dropna()
+    df = df[["text", "label"]].dropna()
 
-    # remove very small dataset issues
-    df = df[df['text'].str.len() > 20]
+    df["text"] = df["text"].astype(str)
+
+    df = df[
+        df["text"].str.split().str.len() >= 8
+    ]
 
     return df
-
 
 def train():
     df = load_data()
 
-    X = df['text']
-    y = df['label']
+    print("Risk samples:", len(df))
 
-    if len(df) < 20:
-        print("Not enough data to train risk model yet")
+    if len(df) < 50:
+        print("Not enough data to train risk model")
         return
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+    X = df["text"]
+    y = df["label"]
+
+    # Generate semantic embeddings
+    X_embed = get_embedding_batch(
+        X.tolist()
     )
 
-    pipeline = Pipeline([
-        ("tfidf", TfidfVectorizer(max_features=5000, ngram_range=(1, 2))),
-        ("clf", LogisticRegression(max_iter=1000))
-    ])
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_embed,
+        y,
+        test_size=0.2,
+        random_state=42,
+        stratify=y
+    )
 
-    pipeline.fit(X_train, y_train)
-    y_pred = pipeline.predict(X_test)
+    base_model = SGDClassifier(
+        loss="log_loss",
+        class_weight="balanced",
+        max_iter=3000,
+        tol=1e-3
+    )
 
-    print("\nRisk Model Report:")
-    print(classification_report(y_test, y_pred))
+    model = CalibratedClassifierCV(
+        base_model,
+        cv=3
+    )
 
-    print("\nConfusion Matrix:")
-    print(confusion_matrix(y_test, y_pred))
-    acc = pipeline.score(X_test, y_test)
-    print(f"Risk Model Accuracy: {acc:.2f}")
+    model.fit(X_train, y_train)
 
-    os.makedirs(os.path.join(BASE_DIR, "models"), exist_ok=True)
-    joblib.dump(pipeline, MODEL_PATH)
+    y_pred = model.predict(X_test)
 
-    print("✅ Risk model saved!")
+    print("\nRisk Model Report:\n")
 
+    print(
+        classification_report(
+            y_test,
+            y_pred,
+            zero_division=0
+        )
+    )
+
+    print("\nConfusion Matrix:\n")
+
+    print(
+        confusion_matrix(
+            y_test,
+            y_pred
+        )
+    )
+
+    acc = model.score(X_test, y_test)
+
+    print(f"\nRisk Model Accuracy: {acc:.2f}")
+
+    os.makedirs(
+        os.path.join(BASE_DIR, "models"),
+        exist_ok=True
+    )
+
+    joblib.dump(model, MODEL_PATH)
+
+    print("\nRisk model saved")
 
 if __name__ == "__main__":
     train()

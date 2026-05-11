@@ -59,23 +59,48 @@ def classify_clause_ml(text, top_k=3, threshold=0.40):
         reverse=True
     )
 
+    # Relative confidence filtering
+    if selected:
+        best_prob = selected[0][1]
+
+        filtered = []
+
+        for label, prob in selected:
+            if prob >= best_prob * 0.55:
+                filtered.append((label, prob))
+
+        selected = filtered
+
+    # Fallback to top-k if nothing selected
     if not selected:
-        top_indices = np.argsort(probs)[::-1][:top_k]
+        top_indices = np.argsort(probs)[::-1]
 
-        selected = [
-            (
-                mlb.classes_[i],
-                float(probs[i])
-            )
-            for i in top_indices
-        ]
+        best_prob = probs[top_indices[0]]
 
+        selected = []
+
+        for i in top_indices:
+            prob = float(probs[i])
+
+            if prob >= best_prob * 0.55:
+                selected.append(
+                    (
+                        mlb.classes_[i],
+                        prob
+                    )
+                )
+
+            if len(selected) >= top_k:
+                break
+
+    # Unknown detection
     if selected[0][1] < 0.45:
         return {
             "labels": ["Unknown"],
             "confidence": selected
         }
 
+    # Final top-k limit
     selected = selected[:top_k]
 
     return {

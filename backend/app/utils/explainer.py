@@ -1,20 +1,48 @@
-def explain_clause(clause, risk, phrases=None, semantic_matches=None):
-    explanation = []
+def explain_clause(
+    clause,
+    predictions,
+    risk,
+    phrases,
+    semantic_matches
+):
+    explanations = []
 
-    if phrases:
-        for phrase, level in phrases:
-            explanation.append(f"Detected phrase: '{phrase}' ({level} risk)")
+    if predictions:
+        top = predictions[0]
+
+        explanations.append(
+            f"This clause is primarily related to "
+            f"{top['label']} "
+            f"({round(top['confidence'] * 100)}% confidence)."
+        )
 
     if semantic_matches:
-        for phrase, level, sim in semantic_matches:
-            explanation.append(f"Similar to: '{phrase}' ({level} risk, {sim*100:.2f}%)")
+        best = semantic_matches[0]
 
-    if not explanation:
-        if risk == "High":
-            explanation.append("This clause may have serious consequences.")
-        elif risk == "Medium":
-            explanation.append("This clause needs attention.")
-        else:
-            explanation.append("This clause appears standard.")
+        explanations.append(
+            f"It is semantically similar to "
+            f"'{best[0]}' "
+            f"({round(best[2] * 100)}% similarity)."
+        )
 
-    return " ".join(explanation)
+    if phrases:
+        explanations.append(
+            "Risk-related phrases were detected."
+        )
+
+    if risk["level"] == "High":
+        explanations.append(
+            "This clause may introduce significant legal obligations or liability."
+        )
+
+    elif risk["level"] == "Medium":
+        explanations.append(
+            "This clause contains potentially important contractual conditions."
+        )
+
+    else:
+        explanations.append(
+            "This clause appears relatively standard."
+        )
+
+    return " ".join(explanations)
