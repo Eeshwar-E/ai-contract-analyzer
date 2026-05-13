@@ -9,6 +9,8 @@ from app.utils.risk_engine import detect_risk, get_risk_label
 from app.utils.explainer import explain_clause
 from app.ml.risk_predict import predict_risk_ml
 from app.utils.logger import logger
+from app.utils.document_classifier import classify_document
+from app.utils.similarity_engine import get_similar_clauses
 
 DATASET_PATH = "risk_dataset.csv"
 
@@ -134,7 +136,7 @@ def process_file(file_path: str):
             phrases,
             semantic_matches
         )
-
+        similar_clauses = get_similar_clauses(clause)
         results.append({
             "clause": clause,
             "predictions": predictions,
@@ -143,9 +145,22 @@ def process_file(file_path: str):
                 "confidence": round(risk_conf, 4)
             },
             "rule_based_score": score,
-            "semantic_matches": semantic_matches,
-            "phrases": phrases,
-            "explanation": explanation
-        })
+            "semantic_matches": [
+                {
+                    "phrase": str(m[0]),
+                    "risk": str(m[1]),
+                    "score": float(m[2])
+                }
+                for m in semantic_matches
+            ],
 
-    return results
+            "phrases": [str(p) for p in phrases],
+            "explanation": explanation,
+            "similar_clauses": similar_clauses
+        })
+    document_summary = classify_document(results)
+
+    return {
+        "document_summary": document_summary,
+        "clauses": results
+    }
