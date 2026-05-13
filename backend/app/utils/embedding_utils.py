@@ -1,102 +1,46 @@
-from sentence_transformers import SentenceTransformer, util
+import requests
 import numpy as np
+import os
 
-_model = None
-_reference_embeddings = None
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-REFERENCE_PHRASES = {
-    "high": [
-        "terminate for convenience",
-        "not liable for damages",
-        "indemnify the company",
-        "we can cancel anytime"
-    ],
+API_URL = (
+    "https://api-inference.huggingface.co/"
+    "pipeline/feature-extraction/"
+    "sentence-transformers/all-MiniLM-L6-v2"
+)
 
-    "medium": [
-        "late payment fee",
-        "auto renewal",
-        "subject to change"
-    ]
+headers = {
+    "Authorization": f"Bearer {HF_TOKEN}"
 }
 
-def get_model():
-    global _model
+def get_embedding(text: str):
 
-    if _model is None:
-        _model = SentenceTransformer(
-            "paraphrase-MiniLM-L3-v2"
+    response = requests.post(
+        API_URL,
+        headers=headers,
+        json={
+            "inputs": text
+        },
+        timeout=60
+    )
+
+    if response.status_code != 200:
+        raise Exception(
+            f"HF API Error: {response.text}"
         )
 
-    return _model
+    embedding = response.json()
 
-def get_reference_embeddings():
-    global _reference_embeddings
-
-    if _reference_embeddings is None:
-
-        model = get_model()
-
-        _reference_embeddings = {
-            level: model.encode(
-                phrases,
-                convert_to_tensor=True
-            )
-            for level, phrases
-            in REFERENCE_PHRASES.items()
-        }
-
-    return _reference_embeddings
-
-def get_embedding(text: str):
-    model = get_model()
-
-    return model.encode(text)
+    return np.array(embedding).mean(axis=0)
 
 def get_embedding_batch(texts):
-    model = get_model()
 
-    return model.encode(
-        texts,
-        batch_size=8,
-        show_progress_bar=True
-    )
+    embeddings = []
 
-def detect_semantic_risk(clause: str):
+    for text in texts:
+        embeddings.append(
+            get_embedding(text)
+        )
 
-    model = get_model()
-
-    reference_embeddings = (
-        get_reference_embeddings()
-    )
-
-    clause_embedding = model.encode(
-        clause,
-        convert_to_tensor=True
-    )
-
-    detected = []
-
-    for level, embeddings in reference_embeddings.items():
-
-        scores = util.cos_sim(
-            clause_embedding,
-            embeddings
-        )[0]
-
-        for i, score in enumerate(scores):
-
-            if score > 0.45:
-
-                phrase = (
-                    REFERENCE_PHRASES[level][i]
-                )
-
-                detected.append(
-                    (
-                        phrase,
-                        level,
-                        float(score)
-                    )
-                )
-
-    return detected
+    return embeddings
