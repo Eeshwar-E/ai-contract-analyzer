@@ -1,0 +1,11 @@
+{
+    "model_version": "v1",
+    "embedding_model": "all-MiniLM-L6-v2",
+    "datasets": [
+        "CUAD",
+        "LEDGAR"
+    ],
+    "threshold": 0.4,
+    "classifier": "SGDClassifier",
+    "trained_at": "2026-05-11T10:49:34.715599"
+}
