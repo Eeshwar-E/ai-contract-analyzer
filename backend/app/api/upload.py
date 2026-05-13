@@ -1,3 +1,4 @@
+print("UPLOAD.PY START")
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.services.file_service import save_file, process_file
 import traceback

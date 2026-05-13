@@ -1,3 +1,4 @@
+print("FILE_SERVICE START")
 import os
 import csv
 

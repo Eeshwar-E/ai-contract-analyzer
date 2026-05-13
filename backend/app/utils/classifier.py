@@ -1,3 +1,4 @@
+print("CLASSIFIER START")
 from app.ml.predict import classify_clause_ml
 
 """ CATEGORY_KEYWORDS = {
