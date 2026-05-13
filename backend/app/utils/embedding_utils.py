@@ -24,7 +24,7 @@ def get_model():
 
     if _model is None:
         _model = SentenceTransformer(
-            "sentence-transformers/all-MiniLM-L6-v2"
+            "paraphrase-MiniLM-L3-v2"
         )
 
     return _model
@@ -57,7 +57,7 @@ def get_embedding_batch(texts):
 
     return model.encode(
         texts,
-        batch_size=16,
+        batch_size=8,
         show_progress_bar=True
     )
 
