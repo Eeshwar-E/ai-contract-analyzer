@@ -1,4 +1,4 @@
-from sentence_transformers import util
+from sklearn.metrics.pairwise import cosine_similarity
 from app.utils.embedding_utils import get_embedding
 
 REFERENCE_CLAUSES = [
@@ -25,8 +25,8 @@ def get_similar_clauses(clause, top_k=2):
 
     query_embedding = get_embedding(clause)
 
-    scores = util.cos_sim(
-        query_embedding,
+    scores = cosine_similarity(
+        [query_embedding],
         reference_embeddings
     )[0]
 
