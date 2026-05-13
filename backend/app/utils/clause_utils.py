@@ -1,7 +1,15 @@
 import re
 import spacy
 
-nlp = spacy.load("en_core_web_sm")
+nlp = spacy.load(
+    "en_core_web_sm",
+    disable=[
+        "ner",
+        "textcat",
+        "tagger",
+        "lemmatizer"
+    ]
+)
 
 MIN_WORDS = 8
 MAX_WORDS = 160
@@ -25,24 +33,34 @@ LEGAL_CONNECTORS = [
 ]
 
 def clean_text(text):
+
     if not text:
         return ""
 
     text = str(text)
 
-    text = text.replace("\r", "\n")
+    text = text.replace(
+        "\r",
+        "\n"
+    )
 
-    text = re.sub(r"\s+", " ", text)
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
 
     return text.strip()
 
 def is_heading(line):
+
     line = clean_text(line)
 
     if not line:
         return False
 
     for pattern in SECTION_PATTERNS:
+
         if re.match(pattern, line):
             return True
 
@@ -54,7 +72,11 @@ def is_heading(line):
 
     return False
 
-def should_merge(prev_clause, next_sentence):
+def should_merge(
+    prev_clause,
+    next_sentence
+):
+
     combined = (
         prev_clause.lower()
         + " "
@@ -62,12 +84,14 @@ def should_merge(prev_clause, next_sentence):
     )
 
     for connector in LEGAL_CONNECTORS:
+
         if connector in combined:
             return True
 
     return False
 
 def split_clauses(text):
+
     text = clean_text(text)
 
     if not text:
@@ -80,16 +104,21 @@ def split_clauses(text):
     current = ""
 
     for line in raw_lines:
+
         line = clean_text(line)
 
         if not line:
             continue
 
         if is_heading(line):
+
             if current.strip():
-                paragraphs.append(current.strip())
+                paragraphs.append(
+                    current.strip()
+                )
 
             current = ""
+
             continue
 
         current += " " + line
@@ -117,17 +146,27 @@ def split_clauses(text):
                 continue
 
             combined_words = len(
-                (temp + " " + sentence).split()
+                (
+                    temp
+                    + " "
+                    + sentence
+                ).split()
             )
 
             if (
                 combined_words <= MAX_WORDS
-                and should_merge(temp, sentence)
+                and should_merge(
+                    temp,
+                    sentence
+                )
             ):
                 temp += " " + sentence
 
             else:
-                clauses.append(temp.strip())
+                clauses.append(
+                    temp.strip()
+                )
+
                 temp = sentence
 
         if temp.strip():
@@ -139,13 +178,16 @@ def split_clauses(text):
 
         clause = clean_text(clause)
 
-        word_count = len(clause.split())
-
-        if word_count < MIN_WORDS:
+        if (
+            len(clause.split())
+            < MIN_WORDS
+        ):
             continue
 
         cleaned.append(clause)
 
-    cleaned = list(dict.fromkeys(cleaned))
+    cleaned = list(
+        dict.fromkeys(cleaned)
+    )
 
     return cleaned
